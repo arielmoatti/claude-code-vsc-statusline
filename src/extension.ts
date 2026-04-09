@@ -174,11 +174,13 @@ function updatePeakItem(schedule: Schedule, show: boolean) {
   const rangeStr = `${fmtHour(startLocal)}-${fmtHour(endLocal)}`;
 
   if (isPeak) {
-    const t = fmtDuration(minsLeft);
-    peakItem.text = `$(flame) ${labelPeak} — ${t} left (${rangeStr})`;
-    peakItem.backgroundColor = minsLeft <= 30
-      ? new vscode.ThemeColor('statusBarItem.warningBackground')
-      : new vscode.ThemeColor('statusBarItem.errorBackground');
+    if (minsLeft > 0 && minsLeft <= 30) {
+      peakItem.text = `$(flame) ${labelPeak} — ${fmtDuration(minsLeft)} left (${rangeStr})`;
+      peakItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+    } else {
+      peakItem.text = `$(flame) ${labelPeak}`;
+      peakItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+    }
     peakItem.color = undefined;
     peakItem.tooltip = '';
     peakItem.show();
