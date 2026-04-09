@@ -1,0 +1,64 @@
+{
+  "name": "claude-code-vsc-statusline",
+  "displayName": "Claude Code Statusline",
+  "description": "Live rate limits, peak hours, and reset timers for Claude Code — right in your VS Code status bar",
+  "version": "0.1.0",
+  "publisher": "arielmoatti",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "claude",
+    "claude-code",
+    "statusline",
+    "rate-limits",
+    "peak-hours",
+    "anthropic"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arielmoatti/claude-code-vsc-statusline"
+  },
+  "contributes": {
+    "configuration": {
+      "title": "Claude Code Statusline",
+      "properties": {
+        "claudeStatusline.refreshInterval": {
+          "type": "number",
+          "default": 30,
+          "description": "Refresh interval in seconds"
+        },
+        "claudeStatusline.showRateLimits": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show rate limit usage (5h and 7d)"
+        },
+        "claudeStatusline.showPeakHours": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show peak/off-peak status"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "npx @vscode/vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^3.0.0"
+  }
+}
