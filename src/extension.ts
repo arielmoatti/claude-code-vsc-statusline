@@ -265,6 +265,8 @@ async function fetchUsage(): Promise<UsageData | null> {
     saveUsageToDisk(parsed);
     return cachedUsage;
   } catch {
+    // Back off on error (e.g. 429) — don't retry for 5 minutes
+    usageFetchedAt = Date.now() - 60_000 + 300_000;
     return cachedUsage ?? loadUsageFromDisk();
   }
 }

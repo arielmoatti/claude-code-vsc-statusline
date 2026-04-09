@@ -1,27 +1,27 @@
 # Claude Code Statusline
 
-A minimal VS Code extension that shows your **Claude Code session usage** and **peak hours** directly in the status bar.
+תוסף קליל ל-VS Code שמציג את **אחוזי השימוש בסשן** ואת **שעות השיא** של Claude Code ישירות בשורת הסטטוס.
 
-![Status Bar Example](https://img.shields.io/badge/5h_|_47%_████░░░░-teal?style=flat-square) ![Off-Peak](https://img.shields.io/badge/✓_Off--Peak-green?style=flat-square)
+![Status Bar](screenshot.jpg)
 
-## What it shows
+## מה מוצג
 
-| Item | When visible | Example |
-|------|-------------|---------|
-| **5h session usage** | Always (when logged in) | `5h \| 47% ████░░░░ ⟳2h 05m (17:35)` |
-| **7d weekly usage** | Only when >= 50% | `7d \| 62% █████░░░` |
-| **Peak / Off-Peak** | Always | `✓ Off-Peak` or `🔥 Peak — 2h 05m left` |
+| פריט | מתי מוצג | דוגמה |
+|------|----------|-------|
+| **שימוש 5 שעות** | תמיד (כשמחוברים) | `5h \| 47% ████░░░░ ⟳2h 05m (17:35)` |
+| **שימוש 7 ימים** | רק מעל 50% | `7d \| 62% █████░░░` |
+| **שעות שיא** | תמיד | `✓ Off-Peak` או `🔥 Peak — 2h 05m left` |
 
-- Usage percentage comes from Anthropic's OAuth API (same token Claude Code already uses)
-- Peak hours schedule is fetched from [Nadav-Fux/claude-2x-statusline](https://github.com/Nadav-Fux/claude-2x-statusline)
-- Auto-refreshes every 30 seconds (configurable)
-- 24H time format
+- אחוזי השימוש נשלפים מ-OAuth API של Anthropic (אותו טוקן שכבר קיים ב-Claude Code)
+- לוח זמני שעות השיא נטען מ-[Nadav-Fux/claude-2x-statusline](https://github.com/Nadav-Fux/claude-2x-statusline)
+- רענון אוטומטי כל 30 שניות (ניתן להגדרה)
+- פורמט שעון 24H
 
-## Install
+## התקנה
 
-### Quick install (copy-paste for Claude)
+### התקנה מהירה (העתיקו כפרומפט לקלוד)
 
-> Install the Claude Code Statusline VS Code extension from source:
+> התקן את התוסף Claude Code Statusline מתוך קוד מקור:
 >
 > ```
 > git clone https://github.com/arielmoatti/claude-code-vsc-statusline.git
@@ -32,30 +32,30 @@ A minimal VS Code extension that shows your **Claude Code session usage** and **
 > code --install-extension claude-code-vsc-statusline-0.1.0.vsix
 > ```
 
-### Manual
+### התקנה ידנית
 
-1. Clone this repo
+1. שכפלו את הריפו
 2. `npm install && npm run compile`
 3. `npx @vscode/vsce package`
-4. In VS Code: Extensions > `...` > Install from VSIX > select the `.vsix` file
+4. ב-VS Code: Extensions > `...` > Install from VSIX > בחרו את קובץ ה-`.vsix`
 
-## Settings
+## הגדרות
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `claudeStatusline.refreshInterval` | `30` | Refresh interval in seconds |
-| `claudeStatusline.showRateLimits` | `true` | Show 5h / 7d usage bars |
-| `claudeStatusline.showPeakHours` | `true` | Show peak/off-peak indicator |
+| הגדרה | ברירת מחדל | תיאור |
+|-------|-----------|-------|
+| `claudeStatusline.refreshInterval` | `30` | תדירות רענון בשניות |
+| `claudeStatusline.showRateLimits` | `true` | הצגת שימוש 5h / 7d |
+| `claudeStatusline.showPeakHours` | `true` | הצגת שעות שיא |
 
-## Requirements
+## דרישות
 
-- **Claude Code** must be installed and logged in (the extension reads the existing OAuth token)
-- No additional API keys needed
+- **Claude Code** מותקן ומחובר (התוסף קורא את טוקן ה-OAuth הקיים)
+- אין צורך במפתחות API נוספים
 
-## Credits
+## קרדיט
 
-Based on [claude-2x-statusline](https://github.com/Nadav-Fux/claude-2x-statusline) by [Nadav Fux](https://github.com/Nadav-Fux). Stripped down and restyled for a cleaner status bar experience.
+מבוסס על [claude-2x-statusline](https://github.com/Nadav-Fux/claude-2x-statusline) מאת [Nadav Fux](https://github.com/Nadav-Fux). גרסה מופשטת ומעוצבת מחדש.
 
-## License
+## רישיון
 
-AGPL-3.0 (same as the original)
+AGPL-3.0 (כמו המקור)
