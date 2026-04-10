@@ -28,6 +28,11 @@ interface UsageData {
   seven_day?: { utilization: number; reset_at?: string; resets_at?: string };
 }
 
+interface UsageResult {
+  data: UsageData | null;
+  error?: string;
+}
+
 // ── Constants ──
 
 const CLAUDE_DIR = path.join(os.homedir(), '.claude');
@@ -56,9 +61,26 @@ let cachedSchedule: Schedule | null = null;
 let cachedUsage: UsageData | null = null;
 let usageFetchedAt = 0;
 
+// ── API-key detection ──
+
+function isApiKeyWorkspace(): boolean {
+  // Check workspace setting: claude-code.environmentVariables
+  const envVars = vscode.workspace.getConfiguration('claude-code')
+    .get<Array<{ name: string; value: string }>>('environmentVariables', []);
+  if (envVars.some(v => v.name === 'ANTHROPIC_API_KEY' && v.value)) { return true; }
+
+  // Check process environment
+  if (process.env.ANTHROPIC_API_KEY) { return true; }
+
+  return false;
+}
+
 // ── Activation ──
 
 export function activate(context: vscode.ExtensionContext) {
+  // Skip entirely in API-key mode — usage endpoint is only relevant for subscriptions
+  if (isApiKeyWorkspace()) { return; }
+
   peakItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 201);
   fhItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 200);
   wdItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 199);
@@ -203,7 +225,19 @@ function updatePeakItem(schedule: Schedule, show: boolean) {
 async function updateRateLimitItems(show: boolean) {
   if (!show) { fhItem.hide(); wdItem.hide(); return; }
 
-  const usage = await fetchUsage();
+  const result = await fetchUsage();
+  if (result.error) {
+    const code = result.error.replace('HTTP ', '');
+    fhItem.text = `$(error) Usage: ${code}`;
+    fhItem.color = '#f14c4c';
+    fhItem.backgroundColor = undefined;
+    fhItem.tooltip = result.error;
+    fhItem.show();
+    wdItem.hide();
+    return;
+  }
+
+  const usage = result.data;
   if (!usage) { fhItem.hide(); wdItem.hide(); return; }
 
   const fh = usage.five_hour;
@@ -247,11 +281,11 @@ function usageBar(pct: number): string {
 
 // ── Usage fetch ──
 
-async function fetchUsage(): Promise<UsageData | null> {
-  if (cachedUsage && Date.now() - usageFetchedAt < 60_000) { return cachedUsage; }
+async function fetchUsage(): Promise<UsageResult> {
+  if (cachedUsage && Date.now() - usageFetchedAt < 60_000) { return { data: cachedUsage }; }
 
   const token = getOAuthToken();
-  if (!token) { return cachedUsage ?? loadUsageFromDisk(); }
+  if (!token) { return { data: cachedUsage ?? loadUsageFromDisk() }; }
 
   try {
     const data = await httpGetWithHeaders('https://api.anthropic.com/api/oauth/usage', {
@@ -261,15 +295,18 @@ async function fetchUsage(): Promise<UsageData | null> {
       'anthropic-beta': 'oauth-2025-04-20',
     });
     const parsed = JSON.parse(data);
-    if (!parsed.five_hour && !parsed.seven_day) { return cachedUsage ?? loadUsageFromDisk(); }
+    if (!parsed.five_hour && !parsed.seven_day) { return { data: cachedUsage ?? loadUsageFromDisk() }; }
     cachedUsage = parsed;
     usageFetchedAt = Date.now();
     saveUsageToDisk(parsed);
-    return cachedUsage;
-  } catch {
-    // Back off on error (e.g. 429) — don't retry for 5 minutes
-    usageFetchedAt = Date.now() - 60_000 + 300_000;
-    return cachedUsage ?? loadUsageFromDisk();
+    return { data: cachedUsage };
+  } catch (err) {
+    // Back off on error — don't retry for 90 seconds
+    usageFetchedAt = Date.now() - 60_000 + 90_000;
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const fallback = cachedUsage ?? loadUsageFromDisk();
+    if (fallback) { return { data: fallback }; }
+    return { data: null, error: errMsg };
   }
 }
 
