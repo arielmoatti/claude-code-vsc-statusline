@@ -92,7 +92,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   refresh();
 
-  const intervalSec = vscode.workspace.getConfiguration('claudeStatusline').get<number>('refreshInterval', 30);
+  const intervalSec = vscode.workspace.getConfiguration('claudeStatusline').get<number>('refreshInterval', 120);
   refreshTimer = setInterval(() => refresh(), intervalSec * 1000);
 }
 
@@ -303,9 +303,8 @@ async function fetchUsage(): Promise<UsageResult> {
   } catch (err) {
     // Back off on error — don't retry for 90 seconds
     usageFetchedAt = Date.now() - 60_000 + 90_000;
+    cachedUsage = null;
     const errMsg = err instanceof Error ? err.message : String(err);
-    const fallback = cachedUsage ?? loadUsageFromDisk();
-    if (fallback) { return { data: fallback }; }
     return { data: null, error: errMsg };
   }
 }
