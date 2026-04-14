@@ -33,12 +33,27 @@ interface UsageResult {
   error?: string;
 }
 
+interface SharedState {
+  data: UsageData | null;
+  fetchedAt: number;
+  nextAllowedAt: number;
+  lockPid: number;
+  lockAt: number;
+}
+
 // ── Constants ──
 
 const CLAUDE_DIR = path.join(os.homedir(), '.claude');
 const CREDENTIALS_PATH = path.join(CLAUDE_DIR, '.credentials.json');
 const SCHEDULE_CACHE_PATH = path.join(CLAUDE_DIR, 'statusline-schedule.json');
 const USAGE_CACHE_PATH = path.join(os.tmpdir(), 'claude', 'statusline-usage-cache.json');
+
+// Shared-state tuning. All instances read/write USAGE_CACHE_PATH as a coordination point.
+const FRESH_TTL_MS = 60_000;            // served without any HTTP
+const LOCK_TTL_MS = 10_000;             // another instance is mid-flight
+const BACKOFF_RATE_LIMIT_MS = 15 * 60_000; // on HTTP 429
+const BACKOFF_ERROR_MS = 2 * 60_000;    // on other errors
+const JITTER_RATIO = 0.25;              // ±25% on refresh interval
 
 const SCHEDULE_URL = 'https://raw.githubusercontent.com/Nadav-Fux/claude-2x-statusline/main/schedule.json';
 
@@ -58,8 +73,6 @@ let fhItem: vscode.StatusBarItem;
 let wdItem: vscode.StatusBarItem;
 let refreshTimer: NodeJS.Timeout | undefined;
 let cachedSchedule: Schedule | null = null;
-let cachedUsage: UsageData | null = null;
-let usageFetchedAt = 0;
 
 // ── API-key detection ──
 
@@ -90,14 +103,22 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('claudeStatusline.refresh', () => refresh())
   );
 
-  refresh();
+  const scheduleNext = () => {
+    const intervalSec = vscode.workspace.getConfiguration('claudeStatusline').get<number>('refreshInterval', 120);
+    const baseMs = intervalSec * 1000;
+    const jitter = baseMs * JITTER_RATIO * (Math.random() * 2 - 1);
+    const delay = Math.max(1000, Math.round(baseMs + jitter));
+    refreshTimer = setTimeout(async () => {
+      await refresh();
+      scheduleNext();
+    }, delay);
+  };
 
-  const intervalSec = vscode.workspace.getConfiguration('claudeStatusline').get<number>('refreshInterval', 120);
-  refreshTimer = setInterval(() => refresh(), intervalSec * 1000);
+  refresh().finally(scheduleNext);
 }
 
 export function deactivate() {
-  if (refreshTimer) { clearInterval(refreshTimer); }
+  if (refreshTimer) { clearTimeout(refreshTimer); }
 }
 
 // ── Main refresh ──
@@ -226,19 +247,24 @@ async function updateRateLimitItems(show: boolean) {
   if (!show) { fhItem.hide(); wdItem.hide(); return; }
 
   const result = await fetchUsage();
-  if (result.error) {
-    const code = result.error.replace('HTTP ', '');
-    fhItem.text = `$(error) Usage: ${code}`;
-    fhItem.color = '#f14c4c';
-    fhItem.backgroundColor = undefined;
-    fhItem.tooltip = result.error;
-    fhItem.show();
+  const usage = result.data;
+
+  // Prefer showing stale data over an error indicator. Only surface an error
+  // when we genuinely have nothing to display.
+  if (!usage) {
+    if (result.error) {
+      const code = result.error.replace('HTTP ', '');
+      fhItem.text = `$(error) Usage: ${code}`;
+      fhItem.color = '#f14c4c';
+      fhItem.backgroundColor = undefined;
+      fhItem.tooltip = result.error;
+      fhItem.show();
+    } else {
+      fhItem.hide();
+    }
     wdItem.hide();
     return;
   }
-
-  const usage = result.data;
-  if (!usage) { fhItem.hide(); wdItem.hide(); return; }
 
   const fh = usage.five_hour;
   const wd = usage.seven_day;
@@ -280,53 +306,107 @@ function usageBar(pct: number): string {
 }
 
 // ── Usage fetch ──
+//
+// Coordination model: every VS Code instance shares a single state file at
+// USAGE_CACHE_PATH. Before making any HTTP call, an instance reads the file
+// and honors three gates:
+//   1. Fresh data     → return cached, no HTTP at all
+//   2. Back-off active → return stale data (or error), no HTTP
+//   3. Lock active    → another instance is mid-flight, skip this tick
+// This makes N instances behave like 1 when it comes to API pressure, and
+// ensures a 429 response pauses every window at once.
 
 async function fetchUsage(): Promise<UsageResult> {
-  if (cachedUsage && Date.now() - usageFetchedAt < 60_000) { return { data: cachedUsage }; }
+  const state = readSharedState();
+  const now = Date.now();
+
+  // Gate 1: fresh data
+  if (state.data && now - state.fetchedAt < FRESH_TTL_MS) {
+    return { data: state.data };
+  }
+
+  // Gate 2: in back-off window — serve stale if we have any, otherwise report
+  if (state.nextAllowedAt > now) {
+    if (state.data) { return { data: state.data }; }
+    const secs = Math.ceil((state.nextAllowedAt - now) / 1000);
+    return { data: null, error: `cooling down ${secs}s` };
+  }
+
+  // Gate 3: another instance holds the fetch lock
+  if (state.lockPid && state.lockPid !== process.pid && now - state.lockAt < LOCK_TTL_MS) {
+    return { data: state.data };
+  }
 
   const token = getOAuthToken();
-  if (!token) { return { data: cachedUsage ?? loadUsageFromDisk() }; }
+  if (!token) { return { data: state.data }; }
+
+  // Acquire lock (best-effort — two instances racing may both write, but the worst
+  // case is one duplicate request, not a stampede).
+  writeSharedState({ ...state, lockPid: process.pid, lockAt: now });
 
   try {
-    const data = await httpGetWithHeaders('https://api.anthropic.com/api/oauth/usage', {
+    const res = await httpGetWithStatus('https://api.anthropic.com/api/oauth/usage', {
       'Authorization': `Bearer ${token}`,
       'Accept': 'application/json',
       'Content-Type': 'application/json',
       'anthropic-beta': 'oauth-2025-04-20',
     });
-    const parsed = JSON.parse(data);
-    if (!parsed.five_hour && !parsed.seven_day) { return { data: cachedUsage ?? loadUsageFromDisk() }; }
-    cachedUsage = parsed;
-    usageFetchedAt = Date.now();
-    saveUsageToDisk(parsed);
-    return { data: cachedUsage };
+
+    if (res.statusCode === 429) {
+      writeSharedState({ ...state, nextAllowedAt: Date.now() + BACKOFF_RATE_LIMIT_MS, lockPid: 0, lockAt: 0 });
+      return { data: state.data, error: 'HTTP 429' };
+    }
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      writeSharedState({ ...state, nextAllowedAt: Date.now() + BACKOFF_ERROR_MS, lockPid: 0, lockAt: 0 });
+      return { data: state.data, error: `HTTP ${res.statusCode}` };
+    }
+
+    const parsed = JSON.parse(res.body) as UsageData;
+    if (!parsed.five_hour && !parsed.seven_day) {
+      writeSharedState({ ...state, lockPid: 0, lockAt: 0 });
+      return { data: state.data };
+    }
+
+    writeSharedState({
+      data: parsed,
+      fetchedAt: Date.now(),
+      nextAllowedAt: 0,
+      lockPid: 0,
+      lockAt: 0,
+    });
+    return { data: parsed };
   } catch (err) {
-    // Back off on error — don't retry for 90 seconds
-    usageFetchedAt = Date.now() - 60_000 + 90_000;
-    cachedUsage = null;
+    writeSharedState({ ...state, nextAllowedAt: Date.now() + BACKOFF_ERROR_MS, lockPid: 0, lockAt: 0 });
     const errMsg = err instanceof Error ? err.message : String(err);
-    return { data: null, error: errMsg };
+    return { data: state.data, error: errMsg };
   }
 }
 
-function loadUsageFromDisk(): UsageData | null {
+const EMPTY_STATE: SharedState = { data: null, fetchedAt: 0, nextAllowedAt: 0, lockPid: 0, lockAt: 0 };
+
+function readSharedState(): SharedState {
   try {
-    const data = JSON.parse(fs.readFileSync(USAGE_CACHE_PATH, 'utf8'));
-    if (data.five_hour || data.seven_day) {
-      cachedUsage = data;
-      usageFetchedAt = Date.now() - 55_000;
-      return data;
+    const raw = JSON.parse(fs.readFileSync(USAGE_CACHE_PATH, 'utf8'));
+    // Back-compat: old format stored only UsageData at the top level
+    if (raw && (raw.five_hour || raw.seven_day) && typeof raw.fetchedAt !== 'number') {
+      return { ...EMPTY_STATE, data: raw as UsageData, fetchedAt: Date.now() - FRESH_TTL_MS };
     }
-  } catch { /* no disk cache */ }
-  return null;
+    return {
+      data: raw.data ?? null,
+      fetchedAt: Number(raw.fetchedAt) || 0,
+      nextAllowedAt: Number(raw.nextAllowedAt) || 0,
+      lockPid: Number(raw.lockPid) || 0,
+      lockAt: Number(raw.lockAt) || 0,
+    };
+  } catch { return { ...EMPTY_STATE }; }
 }
 
-function saveUsageToDisk(data: UsageData) {
+function writeSharedState(state: SharedState) {
   try {
     const dir = path.dirname(USAGE_CACHE_PATH);
     if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
-    fs.writeFileSync(USAGE_CACHE_PATH, JSON.stringify(data, null, 2));
-  } catch { /* write failed */ }
+    fs.writeFileSync(USAGE_CACHE_PATH, JSON.stringify(state, null, 2));
+  } catch { /* write failed — next tick will retry */ }
 }
 
 function getOAuthToken(): string {
@@ -455,7 +535,7 @@ function httpGet(url: string): Promise<string> {
   });
 }
 
-function httpGetWithHeaders(url: string, headers: Record<string, string>): Promise<string> {
+function httpGetWithStatus(url: string, headers: Record<string, string>): Promise<{ statusCode: number; body: string }> {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     const req = https.request({
@@ -464,10 +544,7 @@ function httpGetWithHeaders(url: string, headers: Record<string, string>): Promi
     }, (res) => {
       let data = '';
       res.on('data', (chunk: Buffer) => { data += chunk; });
-      res.on('end', () => {
-        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) { resolve(data); }
-        else { reject(new Error(`HTTP ${res.statusCode}`)); }
-      });
+      res.on('end', () => resolve({ statusCode: res.statusCode ?? 0, body: data }));
     });
     req.on('error', reject);
     req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
