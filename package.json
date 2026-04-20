@@ -2,7 +2,7 @@
   "name": "claude-code-vsc-statusline",
   "displayName": "Claude Code Statusline",
   "description": "Live rate limits, peak hours, and reset timers for Claude Code — right in your VS Code status bar",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "arielmoatti",
   "engines": {
     "vscode": "^1.85.0"

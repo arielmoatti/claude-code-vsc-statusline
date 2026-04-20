@@ -54,6 +54,7 @@ const LOCK_TTL_MS = 10_000;             // another instance is mid-flight
 const BACKOFF_RATE_LIMIT_MS = 15 * 60_000; // on HTTP 429
 const BACKOFF_ERROR_MS = 2 * 60_000;    // on other errors
 const JITTER_RATIO = 0.25;              // ±25% on refresh interval
+const STALE_POLL_SEC = 30;              // faster cadence once cached reset_at elapsed
 
 const SCHEDULE_URL = 'https://raw.githubusercontent.com/Nadav-Fux/claude-2x-statusline/main/schedule.json';
 
@@ -104,7 +105,12 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   const scheduleNext = () => {
-    const intervalSec = vscode.workspace.getConfiguration('claudeStatusline').get<number>('refreshInterval', 120);
+    const configured = vscode.workspace.getConfiguration('claudeStatusline').get<number>('refreshInterval', 120);
+    // When cached reset_at has already passed, Anthropic's endpoint is often still
+    // serving stale values for a few minutes. Poll faster so we catch the refresh.
+    const intervalSec = isUsagePastReset(readSharedState().data)
+      ? Math.min(STALE_POLL_SEC, configured)
+      : configured;
     const baseMs = intervalSec * 1000;
     const jitter = baseMs * JITTER_RATIO * (Math.random() * 2 - 1);
     const delay = Math.max(1000, Math.round(baseMs + jitter));
@@ -316,12 +322,28 @@ function usageBar(pct: number): string {
 // This makes N instances behave like 1 when it comes to API pressure, and
 // ensures a 429 response pauses every window at once.
 
+function isUsagePastReset(usage: UsageData | null): boolean {
+  if (!usage) { return false; }
+  const resets = [
+    usage.five_hour?.resets_at ?? usage.five_hour?.reset_at,
+    usage.seven_day?.resets_at ?? usage.seven_day?.reset_at,
+  ];
+  const now = Date.now();
+  return resets.some(r => {
+    if (!r) { return false; }
+    const t = new Date(r).getTime();
+    return Number.isFinite(t) && t <= now;
+  });
+}
+
 async function fetchUsage(): Promise<UsageResult> {
   const state = readSharedState();
   const now = Date.now();
 
-  // Gate 1: fresh data
-  if (state.data && now - state.fetchedAt < FRESH_TTL_MS) {
+  // Gate 1: fresh data — but bypass once the cached reset_at has elapsed, since
+  // the API often keeps returning stale utilization for minutes after reset.
+  // Back-off (Gate 2) and lock (Gate 3) still apply, so this doesn't stampede.
+  if (state.data && now - state.fetchedAt < FRESH_TTL_MS && !isUsagePastReset(state.data)) {
     return { data: state.data };
   }
 
@@ -466,7 +488,7 @@ function fmtResetTime(iso: string): string {
   try {
     const d = new Date(iso);
     const diffMin = Math.floor((d.getTime() - Date.now()) / 60_000);
-    if (diffMin <= 0) { return 'now'; }
+    if (diffMin <= 0) { return 'syncing'; }
     return `in ${fmtDuration(diffMin)}`;
   } catch { return iso; }
 }
