@@ -28,8 +28,6 @@
 <li><b>פורמט:</b> סכומים מחושבים מיחידות מינור של ה-API (סנטים) — <code>720 → €7.20</code></li>
 </ul>
 
-<p align="right"><img src="screenshot-full.jpg" alt="extra usage bar" width="520"/></p>
-
 ### שימוש 5 שעות
 
 תמיד מוצג (כשמחוברים): `5h | 47% ████░░░░ ⟳2h 05m (17:35)` — אחוז, פס סוללה, countdown לאיפוס, ושעת איפוס.
@@ -144,8 +142,6 @@ When your 5-hour or 7-day quota hits 100% **and** your account has "switch to ex
 - **Currency:** auto-detected from your Windows locale. Spain/Germany/France/etc. → €, UK → £, **Israel → $** (Anthropic bills IL accounts in USD even when the OS shows ₪), default → $.
 - **Override** via `claudeStatusline.currencySymbol`.
 - **Formatting:** values come from the API in minor units (cents). `720 → €7.20`.
-
-<p><img src="screenshot-full.jpg" alt="extra usage bar" width="520"/></p>
 
 ### 5-hour usage
 
