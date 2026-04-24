@@ -2,7 +2,7 @@
   "name": "claude-code-vsc-statusline",
   "displayName": "Claude Code Statusline",
   "description": "Live rate limits, peak hours, and reset timers for Claude Code — right in your VS Code status bar",
-  "version": "0.1.2",
+  "version": "0.2.4",
   "publisher": "arielmoatti",
   "engines": {
     "vscode": "^1.85.0"
@@ -45,6 +45,19 @@
           "type": "boolean",
           "default": true,
           "description": "Show peak/off-peak status"
+        },
+        "claudeStatusline.currencySymbol": {
+          "type": "string",
+          "default": "",
+          "description": "Override the auto-detected currency symbol for the extra-usage bar (e.g. \"$\", \"€\", \"£\", \"₪\"). Leave empty to auto-detect from Windows locale; Israel is forced to USD by default since Anthropic bills IL accounts in $."
+        },
+        "claudeStatusline._fakeOverrides": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "default": null,
+          "markdownDescription": "**Debug only.** Inject fake values for QA. Shallow-merges into each field. Amounts in `extra_usage` are in **cents** (minor units): `used_credits: 720` = €7.20. Example: `{\"seven_day\": {\"utilization\": 62, \"resets_at\": \"2026-04-30T10:00:00Z\"}, \"extra_usage\": {\"is_enabled\": true, \"used_credits\": 720, \"monthly_limit\": 1000}}`. Set to `null` (or remove) to disable."
         }
       }
     }
