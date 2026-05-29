@@ -1,8 +1,8 @@
 {
   "name": "claude-code-vsc-statusline",
   "displayName": "Claude Code Statusline",
-  "description": "Live rate limits, peak hours, and reset timers for Claude Code — right in your VS Code status bar",
-  "version": "0.2.4",
+  "description": "Live rate limits, extra-usage, and reset timers for Claude Code — right in your VS Code status bar",
+  "version": "0.3.0",
   "publisher": "arielmoatti",
   "engines": {
     "vscode": "^1.85.0"
@@ -15,7 +15,6 @@
     "claude-code",
     "statusline",
     "rate-limits",
-    "peak-hours",
     "anthropic"
   ],
   "activationEvents": [
@@ -40,11 +39,6 @@
           "type": "boolean",
           "default": true,
           "description": "Show rate limit usage (5h and 7d)"
-        },
-        "claudeStatusline.showPeakHours": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show peak/off-peak status"
         },
         "claudeStatusline.currencySymbol": {
           "type": "string",

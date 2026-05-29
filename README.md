@@ -2,7 +2,7 @@
 
 # Claude Code Statusline
 
-תוסף קליל ל-VS Code שמציג את **אחוזי השימוש בסשן**, **שעות השיא**, ו-**חריגה מעבר למכסה** של Claude Code ישירות בשורת הסטטוס.
+תוסף קליל ל-VS Code שמציג את **אחוזי השימוש בסשן** ו-**חריגה מעבר למכסה** של Claude Code ישירות בשורת הסטטוס.
 הפיצ'רים מסודרים מהחדש ביותר לישן.
 
 ![Status Bar](screenshot-full.jpg)
@@ -47,20 +47,6 @@
 <li>countdown מתאים את עצמו: ימים+שעות, שעות+דקות, או דקות בלבד — תמיד 2 יחידות מידע מרביות</li>
 </ul>
 
-### שעות שיא (Peak Hours)
-
-<table dir="rtl">
-<tr><th>מצב</th><th>דוגמה</th></tr>
-<tr><td>מחוץ לשיא</td><td dir="ltr"><code>✓ Off-Peak</code></td></tr>
-<tr><td>שעה אחרונה לפני שיא</td><td dir="ltr"><code>✓ Off-Peak — peak in 23m (14:00-20:00)</code></td></tr>
-<tr><td>בזמן שיא</td><td dir="ltr"><code>🔥 Peak — 2h 05m left (14:00-20:00)</code></td></tr>
-</table>
-
-<ul dir="rtl">
-<li>לוח זמני שעות השיא נטען מ-<a href="https://github.com/Nadav-Fux/claude-2x-statusline">Nadav-Fux/claude-2x-statusline</a></li>
-<li>פורמט שעון 24H</li>
-</ul>
-
 ---
 
 ## התקנה
@@ -97,7 +83,6 @@ code --install-extension claude-code-vsc-statusline-*.vsix --force
 <tr><th>הגדרה</th><th>ברירת מחדל</th><th>תיאור</th></tr>
 <tr><td dir="ltr"><code>claudeStatusline.refreshInterval</code></td><td>120</td><td>תדירות רענון בסיסית בשניות</td></tr>
 <tr><td dir="ltr"><code>claudeStatusline.showRateLimits</code></td><td>true</td><td>הצגת שימוש 5h / 7d / extra</td></tr>
-<tr><td dir="ltr"><code>claudeStatusline.showPeakHours</code></td><td>true</td><td>הצגת שעות שיא</td></tr>
 <tr><td dir="ltr"><code>claudeStatusline.currencySymbol</code></td><td>(אוטומטי)</td><td>עקיפת הזיהוי האוטומטי של סמל המטבע. ריק ← לפי מדינת Windows</td></tr>
 </table>
 
@@ -158,17 +143,6 @@ Shown **only above 50%**: `7d | 62% █████░░░ ⟳5d 13h`.
 - Below 50%, invisible — out of your way.
 - Countdown adapts to scale: days+hours, hours+minutes, or minutes-only — always up to 2 units.
 
-### Peak hours
-
-| State | Example |
-|---|---|
-| Off-peak | `✓ Off-Peak` |
-| Last hour before peak | `✓ Off-Peak — peak in 23m (14:00-20:00)` |
-| During peak | `🔥 Peak — 2h 05m left (14:00-20:00)` |
-
-- Schedule loaded from [Nadav-Fux/claude-2x-statusline](https://github.com/Nadav-Fux/claude-2x-statusline)
-- 24H clock
-
 ---
 
 ## Install
@@ -201,7 +175,6 @@ code --install-extension claude-code-vsc-statusline-*.vsix --force
 |---|---|---|
 | `claudeStatusline.refreshInterval` | 120 | Base refresh interval in seconds |
 | `claudeStatusline.showRateLimits` | true | Show 5h / 7d / extra usage bars |
-| `claudeStatusline.showPeakHours` | true | Show peak/off-peak status |
 | `claudeStatusline.currencySymbol` | *(auto)* | Override auto-detected currency symbol. Empty → detected from Windows locale |
 
 ---
