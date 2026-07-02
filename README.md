@@ -17,7 +17,42 @@
 
 ## פיצ'רים
 
-### ‏🆕 חריגת שימוש (Extra usage)
+### ‏🆕 סקיל נלווה: statuswatch (אופציונלי)
+
+התוסף נותן **לך** עין על המכסה - הסקיל נותן **ל-Claude** יד על הבלם.
+
+statuswatch הוא סקיל ל-Claude Code שנשען על נתוני התוסף: כשאתם משגרים עבודה כבדה (צי סוכנים במקביל, workflow ארוך), הוא דוגם את המכסה ברקע **ועוצר את העבודה לפני שמכסת ה-5 שעות נגמרת** - כך שתמיד נשאר לכם מרווח (headroom) לעבוד במקביל, לעצור את הסשן, או פשוט לא להינעל בחוץ. מכסת ה-5 שעות היא חשבונית-רוחבית: פרומפט אחד גרגרני יכול להשבית אתכם בכל הפלטפורמות, כולל מהנייד. הסקיל קיים בדיוק בשביל למנוע את זה.
+
+בונוס למשימות ענק: **עבודה במשמרות** - עוצר בתקרה, ממתין לאיפוס המכסה (הוא יודע מה-statusline בדיוק מתי), ממשיך מאותה נקודה, וחוזר חלילה עד השלמת המשימה. טייס אוטומטי לכל הלילה.
+
+<details>
+<summary><b>איך זה עובד + התקנה</b></summary>
+<div dir="rtl">
+
+**הארכיטקטורה:** התוסף כותב את נתוני ה-usage לקובץ cache מקומי (`<tmp>/claude/statusline-usage-cache.json`). הסקיל קורא את הקובץ הזה - ורק אותו. statusline = החיישן, statuswatch = הבקר. בלי התוסף, ל-Claude אין שום דרך לדעת כמה מכסה נשארה.
+
+**מה הסקיל עושה ומה לא:**
+
+<ul dir="rtl">
+<li>✅ קורא קובץ מקומי אחד. עוצר עבודה רצה. מתזמן לעצמו בדיקות רקע</li>
+<li>❌ אפס קריאות רשת, אפס גישה ל-credentials, שום דבר לא יוצא מהמחשב</li>
+<li>❌ לא מפעיל את עצמו - רץ רק כשמבקשים ממנו</li>
+</ul>
+
+**הברירות מחדל ולמה:** דגימה כל ≈150 שניות בזמן עבודה כבדה - כי התוסף עצמו מתרענן כל ≈120 שניות (דגימה צפופה יותר סתם קוראת את אותו ערך; דלילה מדי מפספסת קפיצות של 20%+, כי צי סוכנים כבד שורף עד ≈4.5% לדקה). סף העצירה יושב ≈10 נקודות מתחת לתקרה שבחרתם, כדי שגם קפיצה של אינטרוול שלם תנחת בתקרה ולא מעבר לה. את התקרה עצמה (85% מומלץ / 90 / 75 / 60) בוחרים באשף ההתקנה.
+
+**התקנה (דרך Claude Code, אין שום npm):** הדביקו לקלוד את הפרומפט הבא, והוא יריץ אשף קצר בעברית - שתי שאלות (תקרה + ביטויי הפעלה) - ויכתוב את הסקיל מותאם אישית:
+
+<blockquote dir="rtl">
+קרא את ההוראות מ-https://raw.githubusercontent.com/arielmoatti/claude-code-vsc-statusline/HEAD/skill/INSTALL.md ופעל לפיהן להתקנת סקיל statuswatch.
+</blockquote>
+
+ההעדפות נצרבות לתוך קובץ הסקיל עצמו (`~/.claude/skills/statuswatch/SKILL.md`) - אין קובץ קונפיג נפרד. אחרי ההתקנה מפעילים אותו בשפה טבעית, תוך כדי שיחה: <i>"...יאללה צא לדרך, אבל שמור לי על המכסה"</i>.
+
+</div>
+</details>
+
+### חריגת שימוש (Extra usage)
 
 כשהמכסה השעתית או השבועית מגיעה ל-100% ו-**בחשבון מופעל "switch to extra usage"**, התוסף מציג פס נוסף בקצה הימני של שורת הסטטוס: `$(credit-card) ▓▓░░░░░░ €X.XX / €Y.YY` באדום.
 
@@ -119,7 +154,36 @@ AGPL-3.0 (כמו המקור)
 
 Ordered newest-first.
 
-### 🆕 Extra usage
+### 🆕 Companion skill: statuswatch (optional)
+
+The extension gives **you** an eye on the quota - the skill gives **Claude** a hand on the brake.
+
+statuswatch is a Claude Code skill built on top of this extension's data: when you launch heavy work (a fleet of parallel agents, a long workflow), it samples the quota in the background and **stops the work BEFORE the 5-hour window runs out** - so you always keep headroom to work in parallel, stop the session, or simply not get locked out. The 5h window is account-wide: one greedy prompt can lock you out on every surface, including your phone. The skill exists to prevent exactly that.
+
+Bonus for oversized missions: **shift work** - stop at the cap, wait for the quota reset (it knows exactly when, from the statusline), resume where it left off, repeat until the mission completes. All-night autopilot.
+
+<details>
+<summary><b>How it works + install</b></summary>
+
+**Architecture:** the extension writes usage data to a local cache file (`<tmp>/claude/statusline-usage-cache.json`). The skill reads that file - and nothing else. statusline = the sensor, statuswatch = the controller. Without the extension, Claude has no way to know how much quota remains.
+
+**What the skill does / does not do:**
+
+- ✅ Reads one local file. Stops running work. Schedules its own background checks.
+- ❌ Zero network calls, zero credential access, nothing leaves the machine.
+- ❌ Never self-activates - runs only when you ask.
+
+**The defaults and why:** sampling every ≈150s during heavy work - because the extension itself refreshes every ≈120s (denser sampling just re-reads the same value; sparser misses 20%+ jumps, since a heavy agent fleet burns up to ≈4.5%/min). The stop trigger sits ≈10 points below your chosen cap, so even a full-interval jump lands at the cap, not past it. The cap itself (85% recommended / 90 / 75 / 60) is chosen in the install wizard.
+
+**Install (via Claude Code, no npm involved):** paste this prompt to Claude; it runs a short wizard - two questions (cap + trigger phrases) - and writes your personalized skill:
+
+> Read the instructions at https://raw.githubusercontent.com/arielmoatti/claude-code-vsc-statusline/HEAD/skill/INSTALL.md and follow them to install the statuswatch skill. (The wizard speaks Hebrew by default - ask Claude to run it in English if you prefer.)
+
+Your preferences are baked into the skill file itself (`~/.claude/skills/statuswatch/SKILL.md`) - no separate config file. After install, invoke it in natural language, mid-conversation: *"...go ahead, but keep an eye on the quota"*.
+
+</details>
+
+### Extra usage
 
 When your 5-hour or 7-day quota hits 100% **and** your account has "switch to extra usage" enabled, a new bar appears at the right edge of the status bar: `$(credit-card) ▓▓░░░░░░ €X.XX / €Y.YY` in red.
 
