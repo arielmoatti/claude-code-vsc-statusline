@@ -49,8 +49,9 @@ node -e "const p=require('path').join(require('os').tmpdir(),'claude','statuslin
 | HEARTBEAT (hot) | 150s | Sampling interval while parallel high-effort agents run. |
 | HEARTBEAT (cool) | 240-600s | Interval once only light/serial agents remain. |
 | WEEKLY STOP | 85% | Secondary guard (max of all weekly entries) - stop everything, don't re-arm. |
+| BACKSTOP | 12 shifts | Runaway guard, independent of quota - a hard wall-clock / shift ceiling so a benign loop that never trips CAP (e.g. lots of free local compute) can't run forever. For a bounded job the user names a tighter cap ("only 3 shifts", "until 08:00"). |
 
-If the user names other numbers in the moment ("stop at 60"), those win for that run.
+If the user names other numbers in the moment ("stop at 60"), those win for that run. **Only CAP / BACKSTOP are meant to move** - the HEARTBEAT and the CAP−10 trigger gap encode the measured burn-rate (see the math) and shouldn't be re-tuned casually; a wrong value silently breaks the headroom guarantee.
 
 ### The math behind the defaults
 
@@ -65,8 +66,21 @@ If the user names other numbers in the moment ("stop at 60"), those win for that
    - **five_hour >= STOP TRIGGER** (primary) → TaskStop, log the runId, arm ONE wakeup for **`resets_at` + ≈2 min** (cap 3600s - longer than that, re-check on firing). The buffer exists because the sensor's cache can lag the reset by one poll cycle. On firing, **verify the reset in the DATA, not the clock**: `five_hour` must actually read low (< 30). Still high → short re-arm (60-90s), never launch blind. Verified fresh → resume: `Workflow({scriptPath, resumeFromRunId})`.
    - **weekly(max) >= WEEKLY STOP** → TaskStop, log, do NOT re-arm. Done until the user returns.
    - **Task finished** (artifact exists / task notification arrived) → stop monitoring, report.
+   - **Task stalled / orphaned** (liveness - see below): not finished, but its progress artifact hasn't advanced for two consecutive firings → treat as dead. TaskStop, log, alert the user. Do NOT re-arm into a corpse.
+   - **Backstop reached** (shift count or wall-clock cap) → TaskStop, log, alert the user with a brief. Runaway guard, independent of quota.
    - **Otherwise** → re-arm: 150s in a hot phase, 240-600s in a cool one.
 4. Log one line per event (time UTC, 5h%, weekly%, action) to the task's log file.
+
+### Liveness - guard the work, not just the quota
+
+The quota heartbeat answers "how much have we burned," never "is the task still alive." A stalled or **orphaned** run - a background agent that died having written nothing, or a resume that never fired - keeps the monitor happily re-arming against a corpse: quota looks fine, so nothing trips, and the user later finds that zero work landed.
+
+So on every firing, alongside the quota read, check a **progress signal** - the mtime (or size / last line) of the task's primary artifact or log. A cheap local stat, no quota cost:
+
+- **Advanced since last firing** → alive; proceed with the normal branch.
+- **Frozen for two consecutive firings** (the count 2 is a fixed constant, not a per-run knob) and the task isn't marked finished → stalled / orphaned. TaskStop, log, alert the user. Do NOT keep re-arming. A frozen artifact + healthy quota is the exact orphan signature.
+
+(Idea adapted - inverted - from the `claude-code-nonstop` extension's output-growth detection: it watches growth to *ping and keep a session alive*; here a frozen signal means *stop and surface*, not nudge.)
 
 ### The shift pattern - tasks bigger than one 5h window
 
