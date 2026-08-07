@@ -18,9 +18,33 @@ statuswatch exists so that no single task ever does that. While heavy work runs,
 - ❌ No network calls, no credential access, nothing leaves the machine.
 - ❌ Never self-activates: runs only when the user asks (trigger phrases above).
 
+(The headless fallback below is the one exception to the "no network" line, and it is opt-in - see that section for exactly what it does.)
+
 ## Hard dependency: the Claude Code Statusline extension
 
 The extension is the ONLY usage sensor - the model has no built-in way to see account quota. **statusline = the sensor, statuswatch = the controller.** If the cache is missing or frozen, this skill cannot function: say so and stop; do NOT improvise another data source.
+
+**One sanctioned exception: a headless session.** The extension runs inside VSCode, so with no editor open nothing refreshes the cache and this skill is blind. That case has a supported fallback - see below. It is not "improvising another source": it is the same endpoint, the same token and the same cache file, driven by a different clock.
+
+## Headless sessions (no VSCode): refresh the cache yourself
+
+**Symptom:** `fetchedAt` is hours or days old and never advances, while Claude Code is plainly running. The numbers may still look plausible - that is the danger. A stale reading of `5h=20%` while the window is actually at 95% is worse than no reading at all.
+
+**When this applies:** any Claude Code session with no VSCode window driving the extension - an Agent SDK daemon, a chat bridge (Telegram/Slack/Discord), a cron or CI run, or plain `claude` in a terminal.
+
+**The fix:** run the poller shipped with the extension before each read.
+
+```bash
+node <repo-or-install>/scripts/usage-poll.cjs        # refresh, print one summary line
+node <repo-or-install>/scripts/usage-poll.cjs --read # print cache as-is, no network
+```
+
+It fetches `GET https://api.anthropic.com/api/oauth/usage` with the user's own Claude Code OAuth token (env → `~/.claude/.credentials.json` → OS keychain, the extension's exact lookup order) and rewrites `<tmp>/claude/statusline-usage-cache.json` in the extension's own shape. **Nothing leaves the machine that the extension was not already sending, and it costs no model tokens** - it is local compute, so calling it on every heartbeat is free against the quota.
+
+**Rules for the headless mode:**
+- **Poll, then read.** In a headless session treat `usage-poll.cjs` as step 0 of every quota check. Never branch on a cache you did not just refresh.
+- **Still honour `age`.** If the poller fails (`HTTP 401` = the token expired; open Claude Code once to refresh it. `HTTP 429` = backing off) do NOT fall back to the stale cache as if it were live. Report the failure and stop, exactly as when the sensor is down.
+- **Structure beats monitoring.** Headless is also where background subagents die silently at session boundaries. Prefer synchronous agents that write their output to disk before the turn ends, cap `Write` retries (a retry resends the whole payload - a retry storm can cost more than the work itself), and forbid agents from pasting their output into the final message as "salvage". A monitor is a fuel gauge, not a fuel saver.
 
 ## The data source
 
@@ -109,4 +133,4 @@ Show the scoped weekly only when it differs from the all-models number.
 - **Exactly ONE wakeup armed per turn.** Double-armed loops multiply and burn the very quota they guard.
 - **Monitor turns stay minimal.** Read cache, decide, act, end turn. No file re-reads, no analysis.
 - **TaskStop is not failure.** Resume is cheap (`resumeFromRunId` replays completed agents from cache); stopping early always beats breaching the CAP. When in doubt, stop earlier.
-- **Cache missing or `fetchedAt` frozen across two reads** → the sensor is down; tell the user instead of flying blind.
+- **Cache missing or `fetchedAt` frozen across two reads** → first check whether this is a headless session (no VSCode = nothing refreshes the cache); if so, run `usage-poll.cjs`. Otherwise the sensor is down: tell the user instead of flying blind.

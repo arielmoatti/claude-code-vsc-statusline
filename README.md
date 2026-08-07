@@ -51,6 +51,15 @@
 
 ההעדפות נצרבות לתוך קובץ הסקיל עצמו (`~/.claude/skills/statuswatch/SKILL.md`) - אין קובץ קונפיג נפרד. אחרי ההתקנה מפעילים אותו בשפה טבעית, תוך כדי שיחה: <i>"...יאללה צא לדרך, אבל שמור לי על המכסה"</i>.
 
+<b>סשן ללא VSCode (headless):</b> התוסף הוא החיישן, ולכן כשאין חלון עורך פתוח אף אחד לא מרענן את ה-cache - ו-statuswatch קורא מספרים שעשויים להיות בני שעות, מה שגרוע יותר מלא לקרוא כלום. אם אתם מריצים את Claude Code בלי עורך (דיימון של Agent SDK, גשר צ'אט, cron/CI, או <code>claude</code> בטרמינל), הריצו את הפולר המצורף לפני כל בדיקה:
+
+```bash
+node scripts/usage-poll.cjs          # רענון + שורת סיכום אחת
+node scripts/usage-poll.cjs --read   # הדפסת ה-cache כמו שהוא, בלי רשת
+```
+
+אותו endpoint, אותו טוקן, אותו קובץ cache כמו התוסף - רק מונע בשעון אחר. זה לא עולה טוקנים של מודל (חישוב מקומי), כך שדופק שקורא לו הוא חינם מבחינת המכסה.
+
 </div>
 </details>
 
@@ -186,6 +195,15 @@ Read the instructions at https://raw.githubusercontent.com/arielmoatti/claude-co
 *(The wizard speaks Hebrew by default - ask Claude to run it in English if you prefer.)*
 
 Your preferences are baked into the skill file itself (`~/.claude/skills/statuswatch/SKILL.md`) - no separate config file. After install, invoke it in natural language, mid-conversation: *"...go ahead, but keep an eye on the quota"*.
+
+**Headless sessions (no VSCode open):** the extension is the sensor, so with no editor running nothing refreshes the cache - statuswatch then reads numbers that can be hours old, which is worse than reading none. If you drive Claude Code headlessly (Agent SDK daemon, chat bridge, cron/CI, plain `claude` in a terminal), run the bundled poller before each check:
+
+```bash
+node scripts/usage-poll.cjs          # refresh + print one summary line
+node scripts/usage-poll.cjs --read   # print the cache as-is, no network
+```
+
+Same endpoint, same token, same cache file as the extension - just driven by a different clock. It costs no model tokens (local compute), so a heartbeat that calls it is free against your quota.
 
 </details>
 
