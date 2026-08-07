@@ -13,12 +13,10 @@ statuswatch exists so that no single task ever does that. While heavy work runs,
 
 ## What this skill does / does not do
 
-- ✅ READS one local file (the statusline extension's usage cache). Nothing else.
+- ✅ Normally READS one local file (the statusline extension's usage cache) and nothing else.
 - ✅ Stops running work (TaskStop) and schedules its own check-ins (ScheduleWakeup).
-- ❌ No network calls, no credential access, nothing leaves the machine.
+- ❌ **Adds no network surface.** No third party, no telemetry, no analytics. The only request that can ever be made on the skill's behalf is the headless poller below: your own quota query, to Anthropic's own API, with your own Claude Code token - byte for byte the request the extension already makes on its own timer.
 - ❌ Never self-activates: runs only when the user asks (trigger phrases above).
-
-(The headless fallback below is the one exception to the "no network" line, and it is opt-in - see that section for exactly what it does.)
 
 ## Hard dependency: the Claude Code Statusline extension
 

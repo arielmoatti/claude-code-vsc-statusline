@@ -36,8 +36,8 @@
 **מה הסקיל עושה ומה לא:**
 
 <ul dir="rtl">
-<li>✅ קורא קובץ מקומי אחד. עוצר עבודה רצה. מתזמן לעצמו בדיקות רקע</li>
-<li>❌ אפס קריאות רשת, אפס גישה ל-credentials, שום דבר לא יוצא מהמחשב</li>
+<li>✅ בדרך כלל קורא קובץ מקומי אחד. עוצר עבודה רצה. מתזמן לעצמו בדיקות רקע</li>
+<li>❌ לא מוסיף שום משטח רשת - אפס צד שלישי, אפס טלמטריה, אפס אנליטיקס. הבקשה היחידה שאי פעם נשלחת בשמו היא הפולר ל-headless שמתואר למטה: שאילתת המכסה שלכם, ל-API של Anthropic עצמה, עם הטוקן שלכם - בדיוק אותה בקשה שהתוסף ממילא שולח בטיימר שלו</li>
 <li>❌ לא מפעיל את עצמו - רץ רק כשמבקשים ממנו</li>
 </ul>
 
@@ -180,8 +180,8 @@ Bonus for oversized missions: **shift work** - stop at the cap, wait for the quo
 
 **What the skill does / does not do:**
 
-- ✅ Reads one local file. Stops running work. Schedules its own background checks.
-- ❌ Zero network calls, zero credential access, nothing leaves the machine.
+- ✅ Normally reads one local file. Stops running work. Schedules its own background checks.
+- ❌ Adds no network surface - no third party, no telemetry, no analytics. The only request ever made on its behalf is the headless poller below: your own quota query, to Anthropic's own API, with your own Claude Code token - the same request the extension already makes on its own timer.
 - ❌ Never self-activates - runs only when you ask.
 
 **The defaults and why:** sampling every ≈150s during heavy work - because the extension itself refreshes every ≈120s (denser sampling just re-reads the same value; sparser misses 20%+ jumps, since a heavy agent fleet burns up to ≈4.5%/min). The stop trigger sits ≈10 points below your chosen cap, so even a full-interval jump lands at the cap, not past it. The cap itself (85% recommended / 90 / 75 / 60) is chosen in the install wizard.
