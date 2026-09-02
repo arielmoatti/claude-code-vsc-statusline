@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as https from 'https';
 import * as os from 'os';
 import { execFileSync, execFile } from 'child_process';
+import { computePace, recordSample } from './pace';
 
 // ── Types ──
 
@@ -68,6 +69,7 @@ const EUROZONE_COUNTRIES = new Set([
 let fhItem: vscode.StatusBarItem;
 let wdItem: vscode.StatusBarItem;
 let extraItem: vscode.StatusBarItem;
+let paceItem: vscode.StatusBarItem;
 let refreshTimer: NodeJS.Timeout | undefined;
 let cachedCurrencySymbol: string | null = null;
 
@@ -97,11 +99,15 @@ function isApiKeyWorkspace(): boolean {
 export function activate(context: vscode.ExtensionContext) {
   if (isApiKeyWorkspace()) { return; }
 
+  // Right-aligned items sort by DESCENDING priority, so the lowest number sits
+  // furthest right. The pace LED stays pinned to the right edge of the group
+  // even when wdItem appears at 50%.
   fhItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 200);
   wdItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 199);
   extraItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 198);
+  paceItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 197);
 
-  context.subscriptions.push(fhItem, wdItem, extraItem);
+  context.subscriptions.push(fhItem, wdItem, extraItem, paceItem);
   context.subscriptions.push(
     vscode.commands.registerCommand('claudeStatusline.refresh', () => refresh())
   );
@@ -160,9 +166,25 @@ async function refresh() {
 // ── Rate Limits ──
 
 async function updateRateLimitItems(show: boolean) {
-  if (!show) { fhItem.hide(); wdItem.hide(); extraItem.hide(); return; }
+  if (!show) { fhItem.hide(); wdItem.hide(); extraItem.hide(); paceItem.hide(); return; }
 
   const result = await fetchUsage();
+
+  // Record the raw sensor reading (never the QA overrides) before anything
+  // else touches it. Deduped on the shared cache's fetchedAt, so N windows
+  // plus the headless poller still produce one row per reading.
+  const shared = readSharedState();
+  if (shared.data?.seven_day) {
+    const wdReset = shared.data.seven_day.resets_at ?? shared.data.seven_day.reset_at;
+    const wdResetMs = wdReset ? new Date(wdReset).getTime() : NaN;
+    recordSample(
+      shared.fetchedAt,
+      shared.data.seven_day.utilization,
+      shared.data.five_hour?.utilization ?? 0,
+      Number.isFinite(wdResetMs) ? wdResetMs : undefined,
+    );
+  }
+
   const usage = applyFakeOverrides(result.data);
 
   if (!usage) {
@@ -178,6 +200,7 @@ async function updateRateLimitItems(show: boolean) {
     }
     wdItem.hide();
     extraItem.hide();
+    paceItem.hide();
     return;
   }
 
@@ -213,7 +236,47 @@ async function updateRateLimitItems(show: boolean) {
   // burning extra *right now*, which only happens once 5h or 7d hits 100%.
   const inOverage = (fhPct >= 100) || (wdPct >= 100);
   updateExtraUsageItem(inOverage ? usage.extra_usage : undefined);
+
+  updatePaceItem(usage);
 }
+
+// ── Weekly burn pace ──
+//
+// Independent of wdItem's 50% visibility rule on purpose: the pace LED earns
+// its place precisely while the weekly bar is still hidden, because by the
+// time the bar shows up it is too late to re-plan the week.
+
+function updatePaceItem(usage: UsageData) {
+  const cfg = vscode.workspace.getConfiguration('claudeStatusline');
+  if (!cfg.get<boolean>('showWeeklyPace', true)) { paceItem.hide(); return; }
+
+  const wd = usage.seven_day;
+  const resetRaw = wd?.resets_at ?? wd?.reset_at;
+  if (!wd || !resetRaw) { paceItem.hide(); return; }
+
+  const resetMs = new Date(resetRaw).getTime();
+  if (!Number.isFinite(resetMs)) { paceItem.hide(); return; }
+
+  const pace = computePace(wd.utilization ?? 0, resetMs, Date.now());
+  if (!pace) { paceItem.hide(); return; }
+
+  // One solid LED in all states. An earlier build used a hollow ring while the
+  // estimate was still the wall-clock fallback, but a status bar glyph that
+  // changes shape reads as a malfunction, not as a confidence level.
+  // The moment the quota runs dry is computed (and asserted against the
+  // landing figure in the tests) but deliberately not shown: the actionable
+  // fact is that you are heading past 100%, not the timestamp of the wall.
+  const landing = Math.min(999, Math.round(pace.landing));
+
+  paceItem.text = `week est. ● ${landing}%`;
+  paceItem.color = pace.level === 'red' ? '#f14c4c'
+    : pace.level === 'orange' ? '#e8ab3a'
+      : '#3dc9b0';
+  paceItem.backgroundColor = undefined;
+  paceItem.tooltip = '';
+  paceItem.show();
+}
+
 
 function updateLimitItem(item: vscode.StatusBarItem, label: string, pct: number,
   resetAt: string | undefined, colorLow: string, colorMid: string, colorHigh: string) {

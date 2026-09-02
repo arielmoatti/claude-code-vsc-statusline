@@ -2,7 +2,7 @@
   "name": "claude-code-vsc-statusline",
   "displayName": "Claude Code Statusline",
   "description": "Live rate limits, extra-usage, and reset timers for Claude Code — right in your VS Code status bar",
-  "version": "0.4.0",
+  "version": "0.5.5",
   "publisher": "arielmoatti",
   "engines": {
     "vscode": "^1.85.0"
@@ -39,6 +39,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show rate limit usage (5h and 7d)"
+        },
+        "claudeStatusline.showWeeklyPace": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show the weekly burn-trend LED (`week est. ● 86%`): where your 7d quota is projected to land at reset, measured per hour of actual work rather than per hour of wall clock. Green = no wall, orange = you run dry near the end of the week, red = you run dry more than a day early."
         },
         "claudeStatusline.currencySymbol": {
           "type": "string",

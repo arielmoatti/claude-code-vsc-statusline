@@ -79,6 +79,43 @@ function readCache() {
   try { return JSON.parse(fs.readFileSync(USAGE_CACHE_PATH, 'utf8')); } catch { return null; }
 }
 
+// The extension's weekly burn-pace LED measures quota spent per hour of actual
+// work, which it recovers from this sample history. Without an entry from here,
+// every headless stretch (Telegram bridge, SDK daemon, cron) looks like idle
+// time to that estimator and the pace reads far too calm. Same file, same
+// format, same dedup key (fetchedAt) as the extension writes.
+const HISTORY_PATH = path.join(os.tmpdir(), 'claude', 'statusline-usage-history.jsonl');
+
+function recordHistory(state) {
+  try {
+    const w = state?.data?.seven_day?.utilization;
+    if (!Number.isFinite(w)) { return; }
+    const h = state?.data?.five_hour?.utilization;
+
+    let lastT = null;
+    try {
+      const lines = fs.readFileSync(HISTORY_PATH, 'utf8').trim().split('\n');
+      for (let i = lines.length - 1; i >= 0 && lastT === null; i--) {
+        try { const o = JSON.parse(lines[i]); if (Number.isFinite(o.t)) { lastT = o.t; } } catch { /* skip */ }
+      }
+    } catch { /* no history yet */ }
+    if (lastT !== null && state.fetchedAt <= lastT) { return; }
+
+    const round2 = n => Math.round(n * 100) / 100;
+    const row = {
+      t: Math.round(state.fetchedAt),
+      w: round2(w),
+      h: round2(Number.isFinite(h) ? h : 0),
+    };
+    // Which weekly window the reading belonged to. Without it a downward
+    // revision of the weekly figure is indistinguishable from a real reset.
+    const rawReset = state.data.seven_day.resets_at || state.data.seven_day.reset_at;
+    const resetMs = rawReset ? new Date(rawReset).getTime() : NaN;
+    if (Number.isFinite(resetMs)) { row.r = Math.round(resetMs); }
+    fs.appendFileSync(HISTORY_PATH, JSON.stringify(row) + '\n');
+  } catch { /* history is best-effort */ }
+}
+
 /** One line in the shape statuswatch expects to reason over. */
 function summarize(state) {
   if (!state || !state.data) return 'no usage data in cache';
@@ -148,6 +185,7 @@ function fetchUsage(token) {
 
   fs.mkdirSync(path.dirname(USAGE_CACHE_PATH), { recursive: true });
   fs.writeFileSync(USAGE_CACHE_PATH, JSON.stringify(state, null, 2));
+  recordHistory(state);
 
   console.log(asJson ? JSON.stringify(state.data, null, 2) : summarize(state));
 })().catch(e => { console.log('ERROR: ' + e.message); process.exit(1); });

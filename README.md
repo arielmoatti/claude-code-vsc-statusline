@@ -17,7 +17,51 @@
 
 ## פיצ'רים
 
-### ‏🆕 סקיל נלווה: statuswatch (אופציונלי)
+### ‏🆕 הערכת מכסה שבועית (week est.)
+
+**"בקצב הזה, אני נגמר לפני שהשבוע נגמר?"**
+
+הפס השבועי אומר לכם כמה שרפתם. הוא לא אומר את הדבר היחיד שמאפשר לתכנן: **לאן אתם הולכים.** `62%` ביום רביעי זה מצוין או אסון, תלוי לגמרי כמה מהשבוע כבר עבר וכמה מהר אתם שורפים - וזה חישוב שאף אחד לא עושה בראש באמצע עבודה.
+
+הפריט הזה עושה אותו: `week est. ● 108%` פירושו **"בקצב הנוכחי תנחת על 108% בסוף השבוע"**, כלומר תיתקעו לפני האיפוס.
+
+![week est.](screenshot-week-est.jpg)
+
+<ul dir="rtl">
+<li><b>ירוק</b> - נוחתים מתחת ל-100%. אין קיר</li>
+<li><b>כתום</b> - 100% עד 115%. תגיעו לקיר, אבל רק ביממה האחרונה של השבוע</li>
+<li><b>אדום</b> - מעל 115%. תיתקעו יותר מיום שלם לפני האיפוס</li>
+<li>מוצג <b>תמיד</b>, גם כשהפס השבועי מוסתר מתחת ל-50% - שם בדיוק הוא שווה משהו, כי ב-60% כבר מאוחר מדי לתכנן מחדש</li>
+</ul>
+
+<details dir="rtl">
+<summary><b>למה זה לא סתם אחוז חלקי הזמן שעבר</b></summary>
+
+<p dir="rtl">החישוב המתבקש הוא <code>אחוז ÷ חלק השבוע שעבר</code>. הוא <b>שגוי בצורה מסוכנת</b>: המכסה השבועית נצברת לפי שעון קיר, אבל אתם שורפים אותה רק כשאתם עובדים. שינה של שמונה שעות "משפרת" את המספר לבד.</p>
+
+<p dir="rtl">אותם 14% בדיוק, בחישוב הזה:</p>
+
+<table dir="rtl">
+<tr><th>רגע</th><th>לפי שעון קיר</th><th>לפי שעות עבודה</th></tr>
+<tr><td>23:30, אחרי 6 שעות עבודה</td><td>152% 🔴</td><td>139% 🔴</td></tr>
+<tr><td>07:00, אחרי שינה</td><td>102% 🟠</td><td>132% 🔴</td></tr>
+</table>
+
+<p dir="rtl">החישוב הנאיבי מרגיע אתכם בבוקר בזמן ששום דבר לא השתנה - לא עבדתם ולא הרווחתם מכסה, רק עבר הזמן. אתם קמים, רואים כתום, וממשיכים באותו קצב ישר לתוך הקיר.</p>
+
+<p dir="rtl">לכן הקצב כאן נמדד <b>לשעת עבודה</b> ולא לשעת שעון. התוסף רושם דגימה בכל רענון לקובץ קטן (<code>&lt;tmp&gt;/claude/statusline-usage-history.jsonl</code>), ומשחזר ממנו כמה שעות באמת עבדתם: מקטע נחשב עבודה רק אם המכסה השבועית זזה בו. פער שאף אחד לא דגם בו לא נספר כעבודה.</p>
+
+<p dir="rtl">שלושה פרטים שנובעים מזה:</p>
+
+<ul dir="rtl">
+<li><b>מה שמריץ headless נספר גם הוא.</b> <code>usage-poll.cjs</code> כותב לאותו קובץ, אחרת כל עבודה מהטרמינל או מגשר צ'אט הייתה נראית כשעות סרק והקצב היה יוצא רגוע מדי</li>
+<li><b>בתחילת השבוע ההערכה נשענת על השבוע הקודם</b> ומתחלפת בהדרגה לנתוני השבוע הנוכחי, כדי שהמספר לא יקפוץ בגלל מכנה של שעתיים</li>
+<li><b>ה-API יכול לתקן את המספר השבועי כלפי מטה באמצע חלון</b> (נצפה חי 01.09.2026, 6% ← 2% בזמן עבודה רצופה, עם <code>resets_at</code> ללא שינוי). לכן כל דגימה נושאת גם את מזהה החלון שלה, והשריפה נמדדת כשינוי נטו בתוך כל חלון - אחרת תיקון כזה היה נספר כשריפה ומנפח את הקצב לתמיד</li>
+</ul>
+
+</details>
+
+### סקיל נלווה: statuswatch (אופציונלי)
 
 התוסף נותן **לך** עין על המכסה - הסקיל נותן **ל-Claude** יד על הבלם.
 
@@ -129,6 +173,7 @@ code --install-extension claude-code-vsc-statusline-*.vsix --force
 <tr><th>הגדרה</th><th>ברירת מחדל</th><th>תיאור</th></tr>
 <tr><td dir="ltr"><code>claudeStatusline.refreshInterval</code></td><td>120</td><td>תדירות רענון בסיסית בשניות</td></tr>
 <tr><td dir="ltr"><code>claudeStatusline.showRateLimits</code></td><td>true</td><td>הצגת שימוש 5h / 7d / extra</td></tr>
+<tr><td dir="ltr"><code>claudeStatusline.showWeeklyPace</code></td><td>true</td><td>הצגת הערכת המכסה השבועית (<code dir="ltr">week est.</code>)</td></tr>
 <tr><td dir="ltr"><code>claudeStatusline.currencySymbol</code></td><td>(אוטומטי)</td><td>עקיפת הזיהוי האוטומטי של סמל המטבע. ריק ← לפי מדינת Windows</td></tr>
 </table>
 
@@ -165,7 +210,46 @@ AGPL-3.0 (כמו המקור)
 
 Ordered newest-first.
 
-### 🆕 Companion skill: statuswatch (optional)
+### 🆕 Weekly quota estimate (week est.)
+
+**"At this rate, do I run out before the week does?"**
+
+The weekly bar tells you how much you have burned. It does not tell you the one thing you can plan around: **where you are heading.** `62%` on a Wednesday is either fine or a disaster depending entirely on how much of the week has passed and how fast you are burning — a calculation nobody does in their head mid-work.
+
+This item does it: `week est. ● 108%` means **"at the current rate you land at 108% by reset"**, i.e. you hit the wall before the week ends.
+
+![week est.](screenshot-week-est.jpg)
+
+- **Green** — landing under 100%. No wall.
+- **Orange** — 100% to 115%. You hit the wall, but only in the last day of the week.
+- **Red** — above 115%. You run dry more than a full day before reset.
+- Shown **always**, including while the weekly bar is hidden below 50% — which is exactly where it earns its place, because at 60% it is already too late to re-plan.
+
+<details>
+<summary><b>Why this is not just percent-over-elapsed</b></summary>
+
+The obvious formula is `utilization ÷ fraction of week elapsed`. It is **wrong in a dangerous way**: weekly quota accrues on wall-clock time, but you only burn it while you work. Sleep eight hours and the number improves on its own.
+
+The same 14%, both ways:
+
+| Moment | Wall clock | Per hour worked |
+|---|---|---|
+| 23:30, after 6 hours of work | 152% 🔴 | 139% 🔴 |
+| 07:00, after sleeping | 102% 🟠 | 132% 🔴 |
+
+The naive reading tells you to relax at breakfast while nothing has changed — you did not work and you did not earn quota, time simply passed. You wake up, see orange, and keep the same pace straight into the wall.
+
+So the rate here is measured **per hour of work**, not per hour of clock. The extension appends a sample on every refresh to a small file (`<tmp>/claude/statusline-usage-history.jsonl`) and recovers actual working hours from it: an interval counts as work only if weekly utilization moved during it. A gap nobody sampled is not counted as work.
+
+Three consequences:
+
+- **Headless work counts too.** `usage-poll.cjs` writes to the same file — otherwise every terminal or chat-bridge session would look like idle time and the pace would read far too calm.
+- **Early in the week the estimate leans on the previous week**, handing over gradually to the current week's data, so the number does not swing on a two-hour denominator.
+- **The API can revise the weekly figure downward mid-window** (observed live 2026-09-01: 6% → 2% during continuous work, with `resets_at` unchanged). So every sample also carries its window id, and burn is measured as the net change inside each window — otherwise such a correction would be counted as burn and inflate the rate permanently.
+
+</details>
+
+### Companion skill: statuswatch (optional)
 
 The extension gives **you** an eye on the quota - the skill gives **Claude** a hand on the brake.
 
@@ -263,6 +347,7 @@ code --install-extension claude-code-vsc-statusline-*.vsix --force
 |---|---|---|
 | `claudeStatusline.refreshInterval` | 120 | Base refresh interval in seconds |
 | `claudeStatusline.showRateLimits` | true | Show 5h / 7d / extra usage bars |
+| `claudeStatusline.showWeeklyPace` | true | Show the weekly quota estimate (`week est.`) |
 | `claudeStatusline.currencySymbol` | *(auto)* | Override auto-detected currency symbol. Empty → detected from Windows locale |
 
 ---
