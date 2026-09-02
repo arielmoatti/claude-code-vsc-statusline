@@ -17,9 +17,9 @@
 
 ## פיצ'רים
 
-### ‏🆕 הערכת מכסה שבועית (week est.)
+### ‏🆕 הערכת מכסה שבועית (<span dir="ltr">week est.</span>)
 
-**"בקצב הזה, אני נגמר לפני שהשבוע נגמר?"**
+**"בקצב הזה, אני אתקע בקיר של המכסה השבועית?"**
 
 הפס השבועי אומר לכם כמה שרפתם. הוא לא אומר את הדבר היחיד שמאפשר לתכנן: **לאן אתם הולכים.** `62%` ביום רביעי זה מצוין או אסון, תלוי לגמרי כמה מהשבוע כבר עבר וכמה מהר אתם שורפים - וזה חישוב שאף אחד לא עושה בראש באמצע עבודה.
 
@@ -62,6 +62,8 @@
 
 </div>
 </details>
+
+---
 
 ### סקיל נלווה: statuswatch (אופציונלי)
 
@@ -109,6 +111,8 @@ node scripts/usage-poll.cjs --read   # הדפסת ה-cache כמו שהוא, בל
 </div>
 </details>
 
+---
+
 ### חריגת שימוש (Extra usage)
 
 כשהמכסה השעתית או השבועית מגיעה ל-100% ו-**בחשבון מופעל "switch to extra usage"**, התוסף מציג פס נוסף בקצה הימני של שורת הסטטוס: `$(credit-card) ▓▓░░░░░░ €X.XX / €Y.YY` באדום.
@@ -120,6 +124,8 @@ node scripts/usage-poll.cjs --read   # הדפסת ה-cache כמו שהוא, בל
 <li><b>פורמט:</b> סכומים מחושבים מיחידות מינור של ה-API (סנטים) — <code>720 → €7.20</code></li>
 </ul>
 
+---
+
 ### שימוש 5 שעות
 
 תמיד מוצג (כשמחוברים): `5h | 47% ████░░░░ ⟳2h 05m (17:35)` — אחוז, פס סוללה, countdown לאיפוס, ושעת איפוס.
@@ -129,6 +135,8 @@ node scripts/usage-poll.cjs --read   # הדפסת ה-cache כמו שהוא, בל
 <li><b>grace בסמוך לאיפוס:</b> כשנשארו פחות מ-15 דקות עד האיפוס, אדום → כתום. לא צריך להיכנס לפאניקה על 85% ב-10 דקות לפני reset</li>
 <li>שעת האיפוס בסוגריים מוצגת רק כשפחות מ-24 שעות עד האיפוס (אחרת זה סתם רעש — "13:00" לא אומר איזה יום)</li>
 </ul>
+
+---
 
 ### שימוש 7 ימים
 
@@ -214,7 +222,7 @@ Ordered newest-first.
 
 ### 🆕 Weekly quota estimate (week est.)
 
-**"At this rate, do I run out before the week does?"**
+**"At this rate, am I going to hit the weekly quota wall?"**
 
 The weekly bar tells you how much you have burned. It does not tell you the one thing you can plan around: **where you are heading.** `62%` on a Wednesday is either fine or a disaster depending entirely on how much of the week has passed and how fast you are burning — a calculation nobody does in their head mid-work.
 
@@ -250,6 +258,8 @@ Three consequences:
 - **The API can revise the weekly figure downward mid-window** (observed live 2026-09-01: 6% → 2% during continuous work, with `resets_at` unchanged). So every sample also carries its window id, and burn is measured as the net change inside each window — otherwise such a correction would be counted as burn and inflate the rate permanently.
 
 </details>
+
+---
 
 ### Companion skill: statuswatch (optional)
 
@@ -293,6 +303,8 @@ Same endpoint, same token, same cache file as the extension - just driven by a d
 
 </details>
 
+---
+
 ### Extra usage
 
 When your 5-hour or 7-day quota hits 100% **and** your account has "switch to extra usage" enabled, a new bar appears at the right edge of the status bar: `$(credit-card) ▓▓░░░░░░ €X.XX / €Y.YY` in red.
@@ -302,6 +314,8 @@ When your 5-hour or 7-day quota hits 100% **and** your account has "switch to ex
 - **Override** via `claudeStatusline.currencySymbol`.
 - **Formatting:** values come from the API in minor units (cents). `720 → €7.20`.
 
+---
+
 ### 5-hour usage
 
 Always shown (when logged in): `5h | 47% ████░░░░ ⟳2h 05m (17:35)` — percent, battery bar, reset countdown, and reset clock time.
@@ -309,6 +323,8 @@ Always shown (when logged in): `5h | 47% ████░░░░ ⟳2h 05m (17:
 - Colors: green (<50%), orange (50-79%), red (≥80%)
 - **Near-reset grace:** when less than 15 min remains before reset, red → orange. No panic over 85% at 10 minutes to go.
 - The clock time in parentheses appears only when less than 24h to reset (otherwise it's noise — "13:00" doesn't say which day).
+
+---
 
 ### 7-day usage
 
